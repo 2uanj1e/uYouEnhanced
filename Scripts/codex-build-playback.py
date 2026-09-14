@@ -200,9 +200,18 @@ def prepare_input():
     OUT.mkdir(exist_ok=True)
     INPUT.mkdir(exist_ok=True)
     ipa = INPUT / "upstream.ipa"
+    input_tag = os.environ.get("INPUT_TAG", "").strip()
+    if input_tag:
+        run(["gh", "release", "download", input_tag, "--repo", os.environ["GITHUB_REPOSITORY"],
+             "--pattern", "*.ipa", "--dir", INPUT, "--clobber"])
+        candidates = list(INPUT.glob("*.ipa"))
+        assert len(candidates) == 1, "Expected one temporary input asset"
+        if candidates[0] != ipa:
+            candidates[0].rename(ipa)
+        RECORD["input_mode"] = "temporary draft release"
     urls = [os.environ["YOUTUBE_URL"],
             "https://ia600409.us.archive.org/24/items/YouTubeRebornPlus_19.10.5-4.2.6/yt-uYE-21144-305.ipa"]
-    for url in dict.fromkeys(urls):
+    for url in ([] if input_tag else dict.fromkeys(urls)):
         try:
             run(["curl", "--fail", "--location", "--connect-timeout", "30",
                  "--max-time", "240", "--silent", "--show-error", "--continue-at", "-",

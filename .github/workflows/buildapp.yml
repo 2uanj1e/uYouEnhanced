@@ -11,12 +11,17 @@ on:
         description: Expected SHA-256 of the verified input IPA
         required: true
         type: string
+      input_tag:
+        description: Optional temporary draft release containing the verified input IPA
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: codex-playback-${{ github.ref }}
+  group: codex-playback-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -91,6 +96,8 @@ jobs:
         env:
           YOUTUBE_URL: ${{ inputs.youtube_url }}
           YOUTUBE_SHA256: ${{ inputs.youtube_sha256 }}
+          INPUT_TAG: ${{ inputs.input_tag }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           echo "::add-mask::$YOUTUBE_URL"
