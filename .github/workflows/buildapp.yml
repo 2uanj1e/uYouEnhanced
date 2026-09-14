@@ -86,7 +86,7 @@ jobs:
             -o "$GITHUB_WORKSPACE/optool-built" > artifacts/optool-build.log 2>&1
           echo "OPTOOL=$GITHUB_WORKSPACE/optool-built" >> "$GITHUB_ENV"
 
-      - name: Build baseline and playback repair
+      - name: Download and clean verified input IPA
         shell: bash
         env:
           YOUTUBE_URL: ${{ inputs.youtube_url }}
@@ -94,7 +94,13 @@ jobs:
         run: |
           set -euo pipefail
           echo "::add-mask::$YOUTUBE_URL"
-          python3 source/Scripts/codex-build-playback.py
+          python3 source/Scripts/codex-build-playback.py prepare
+
+      - name: Build and verify baseline IPA
+        run: python3 source/Scripts/codex-build-playback.py baseline
+
+      - name: Incrementally build and verify playback repair IPA
+        run: python3 source/Scripts/codex-build-playback.py modified
 
       - name: Upload build artifacts
         if: always()

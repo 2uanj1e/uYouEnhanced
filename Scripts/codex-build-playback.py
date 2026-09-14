@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 
 
@@ -18,6 +19,8 @@ OUT = ROOT / "artifacts"
 SOURCE = ROOT / "source"
 INPUT = ROOT / "input"
 RECORD = {"commands": [], "variants": {}, "source_commit": os.environ.get("GITHUB_SHA")}
+if (OUT / "verification.json").exists():
+    RECORD = json.loads((OUT / "verification.json").read_text())
 OLD_DYLIBS = {
     "uYouEnhanced.dylib", "uYou.dylib", "libFLEX.dylib", "YTABConfig.dylib",
     "YTIcons.dylib", "YouGroupSettings.dylib", "YouLoop.dylib", "YouMute.dylib",
@@ -43,10 +46,13 @@ def save_record():
 
 def run(args, *, cwd=None, log=None, redact=False):
     argv = [str(x) for x in args]
+    started = time.monotonic()
+    print(f"Starting {Path(argv[0]).name}" + (f" ({log})" if log else ""), flush=True)
     result = subprocess.run(argv, cwd=cwd, text=True, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, check=False)
     command = ["curl", "<verified-input-url>"] if redact else argv
     item = {"command": command, "cwd": str(cwd or ROOT), "exit_status": result.returncode}
+    item["elapsed_seconds"] = round(time.monotonic() - started, 3)
     if log:
         (OUT / log).write_text(result.stdout)
         item["literal_output_file"] = log
@@ -54,6 +60,7 @@ def run(args, *, cwd=None, log=None, redact=False):
         item["literal_output"] = result.stdout
     RECORD["commands"].append(item)
     save_record()
+    print(f"Finished {Path(argv[0]).name}: exit {result.returncode}, {item['elapsed_seconds']}s", flush=True)
     if result.returncode:
         print("\n".join(result.stdout.splitlines()[-100:]), file=sys.stderr)
         raise RuntimeError(f"Command failed: {command[0]} (exit {result.returncode})")
@@ -140,20 +147,35 @@ def verify_app(app):
 
 
 def build_variant(label, enabled, clean_app):
-    build = ROOT / "builds" / label
-    shutil.copytree(SOURCE, build, symlinks=True,
-                    ignore=shutil.ignore_patterns(".git", ".theos", "packages", "__pycache__"))
+    build = ROOT / "builds" / "shared"
+    if not build.exists():
+        shutil.copytree(SOURCE, build, symlinks=True,
+                        ignore=shutil.ignore_patterns(".git", ".theos", "packages", "__pycache__"))
     app = build / "Payload/YouTube.app"
-    app.parent.mkdir(exist_ok=True)
-    shutil.copytree(clean_app, app, symlinks=True)
+    if not app.exists():
+        app.parent.mkdir(exist_ok=True)
+        shutil.copytree(clean_app, app, symlinks=True)
+    if enabled:
+        assert "baseline" in RECORD["variants"], "Incremental build requires verified baseline"
+        # Keep all subproject products. Rebuild the main tweak with the two
+        # additional hooks and changed compiler definition.
+        obj = build / ".theos/obj"
+        for path in list(obj.rglob("Sources")):
+            if path.is_dir():
+                shutil.rmtree(path)
+        for path in list(obj.rglob("uYouEnhanced.dylib")):
+            path.unlink()
     args = ["make", "package", "THEOS_PACKAGE_SCHEME=rootless", "IPA=Payload/YouTube.app",
             "FINALPACKAGE=1", "SDK_VERSION=18.6", "UYOU_VERSION=3.0.4",
             "YOUTUBE_VERSION=21.14.4", f"CODEX_PLAYBACK_FIXES={enabled}",
             f"PACKAGE_VERSION=21.14.4-3.0.5-{label}",
             "BUNDLE_ID=com.google.ios.youtube", "DISPLAY_NAME=YouTube",
             "YTUHD_ENABLED=0", "SPONSORBLOCK_ENABLED=0"]
+    if enabled:
+        args.append("SUBPROJECTS=")
+    previous_packages = set((build / "packages").glob("*.ipa"))
     run(args, cwd=build, log=f"{label}-build.log")
-    packages = list((build / "packages").glob("*.ipa"))
+    packages = list(set((build / "packages").glob("*.ipa")) - previous_packages)
     assert len(packages) == 1, packages
     stage = ROOT / "signed" / label
     stage.mkdir(parents=True)
@@ -174,13 +196,21 @@ def build_variant(label, enabled, clean_app):
     print(f"Built and statically verified {target.name}: {result['sha256']}", flush=True)
 
 
-def main():
+def prepare_input():
     OUT.mkdir(exist_ok=True)
     INPUT.mkdir(exist_ok=True)
     ipa = INPUT / "upstream.ipa"
-    run(["curl", "--fail", "--location", "--retry", "3", "--connect-timeout", "30",
-         "--max-time", "600", "--silent", "--show-error", os.environ["YOUTUBE_URL"],
-         "--output", ipa], redact=True)
+    urls = [os.environ["YOUTUBE_URL"],
+            "https://ia600409.us.archive.org/24/items/YouTubeRebornPlus_19.10.5-4.2.6/yt-uYE-21144-305.ipa"]
+    for url in dict.fromkeys(urls):
+        try:
+            run(["curl", "--fail", "--location", "--connect-timeout", "30",
+                 "--max-time", "240", "--silent", "--show-error", "--continue-at", "-",
+                 url, "--output", ipa], redact=True)
+        except RuntimeError:
+            print("Input endpoint did not finish; trying the verified mirror", flush=True)
+        if ipa.exists() and digest(ipa) == os.environ["YOUTUBE_SHA256"].strip().lower():
+            break
     actual = digest(ipa)
     assert actual == os.environ["YOUTUBE_SHA256"].strip().lower(), "Input SHA-256 mismatch"
     RECORD["input_sha256"] = actual
@@ -188,10 +218,21 @@ def main():
     run(["git", "submodule", "status", "--recursive"], cwd=SOURCE, log="submodule-commits.txt")
     app = unpack(ipa, INPUT / "extracted")
     clean_old_injection(app)
-    build_variant("baseline", 0, app)
-    build_variant("playback-fix", 1, app)
+
+
+def main():
+    phase = sys.argv[1] if len(sys.argv) > 1 else "all"
+    started = time.monotonic()
+    print(f"Build phase: {phase}", flush=True)
+    if phase in ("prepare", "all"):
+        prepare_input()
+    if phase in ("baseline", "all"):
+        build_variant("baseline", 0, INPUT / "extracted/Payload/YouTube.app")
+    if phase in ("modified", "all"):
+        build_variant("playback-fix", 1, INPUT / "extracted/Payload/YouTube.app")
     lines = [f"{item['sha256']}  {item['artifact']}" for item in RECORD["variants"].values()]
     (OUT / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n")
+    print(f"Completed phase {phase} in {time.monotonic() - started:.1f}s", flush=True)
 
 
 if __name__ == "__main__":
