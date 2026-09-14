@@ -30,7 +30,7 @@ NSArray *NSUserDefaultsCopyKeys = @[
     kDisableYourDataInYouTubeSection, kDisablePrivacySection, 
     kDisableLiveChatSection, kHidePremiumPromos, kHideHomeTab, 
     kLowContrastMode, kClassicVideoPlayer, kDisableModernButtons, 
-    kDisableModernFlags, kEnableVersionSpoofer, kGoogleSignInPatch, 
+    kDisableModernFlags, kEnableVersionSpoofer,
     kAdBlockWorkaroundLite, kAdBlockWorkaround, kFixPlaybackIssues,
     kYTPremiumLogo, kDisableAnimatedYouTubeLogo, kCenterYouTubeLogo, 
     kHideYouTubeLogo, kYTStartupAnimation, kDisableHints, 

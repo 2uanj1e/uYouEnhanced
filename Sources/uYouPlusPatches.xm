@@ -3,8 +3,6 @@
 #import <fcntl.h>
 #import <unistd.h>
 
-#define YT_BUNDLE_ID @"com.google.ios.youtube"
-#define YT_NAME @"YouTube"
 
 // Declared for the Dynamic Island fix (gDynamicIslandFix below) — logos only
 // emits a forward @class for hooked classes, which isn't enough to message
@@ -16,44 +14,8 @@
 
 # pragma mark - YouTube patches
 
-// Fix Google Sign in Patch - handles AltStore and SideStore bundle IDs
-%group gGoogleSignInPatch
-%hook NSBundle
-+ (NSBundle *)bundleWithIdentifier:(NSString *)identifier {
-    if ([identifier isEqualToString:YT_BUNDLE_ID])
-        return NSBundle.mainBundle;
-    // SideStore: also handle alternative bundle ID formats
-    if (uYouIsSideStore() && [identifier hasSuffix:@".google.ios.youtube"])
-        return NSBundle.mainBundle;
-    return %orig(identifier);
-}
-- (NSString *)bundleIdentifier {
-    if ([self isEqual:NSBundle.mainBundle])
-        return YT_BUNDLE_ID;
-    // SideStore: preserve the actual bundle ID for internal checks
-    return %orig;
-}
-- (NSDictionary *)infoDictionary {
-    NSDictionary *dict = %orig;
-    if (![self isEqual:NSBundle.mainBundle])
-        return %orig;
-    NSMutableDictionary *info = [dict mutableCopy];
-    if (info[@"CFBundleIdentifier"]) info[@"CFBundleIdentifier"] = YT_BUNDLE_ID;
-    if (info[@"CFBundleDisplayName"]) info[@"CFBundleDisplayName"] = YT_NAME;
-    if (info[@"CFBundleName"]) info[@"CFBundleName"] = YT_NAME;
-    return info;
-}
-- (id)objectForInfoDictionaryKey:(NSString *)key {
-    if (![self isEqual:NSBundle.mainBundle])
-        return %orig;
-    if ([key isEqualToString:@"CFBundleIdentifier"])
-        return YT_BUNDLE_ID;
-    if ([key isEqualToString:@"CFBundleDisplayName"] || [key isEqualToString:@"CFBundleName"])
-        return YT_NAME;
-    return %orig;
-}
-%end
-%end
+// This update build retains the existing signed-in session. The temporary
+// login bootstrap is installed separately, then replaced in place.
 
 %group gPatches
 
@@ -329,9 +291,6 @@ static BOOL UYTIsJailbroken(void) {
         }];
     }
 
-    if (IS_ENABLED(kGoogleSignInPatch)) {
-        %init(gGoogleSignInPatch);
-    }
 
     // Disable broken options
 

@@ -23,7 +23,8 @@ PACKAGE_VERSION = $(YOUTUBE_VERSION)-$(UYOU_VERSION)
 $(TWEAK_NAME)_FILES := $(wildcard Sources/*.xm) $(wildcard Sources/*.x) $(wildcard Sources/*.m)
 $(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation AVFoundation AVKit Photos Accelerate CoreMotion GameController VideoToolbox Security MediaPlayer
 $(TWEAK_NAME)_LIBRARIES = bz2 c++ iconv z
-$(TWEAK_NAME)_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-unused-but-set-variable -DTWEAK_VERSION=\"$(PACKAGE_VERSION)\"
+CODEX_PLAYBACK_FIXES ?= 1
+$(TWEAK_NAME)_CFLAGS = -DCODEX_PLAYBACK_FIXES=$(CODEX_PLAYBACK_FIXES) -fobjc-arc -Wno-deprecated-declarations -Wno-unused-but-set-variable -DTWEAK_VERSION=\"$(PACKAGE_VERSION)\"
 
 export libcolorpicker_ARCHS = arm64
 export libFLEX_ARCHS = arm64
@@ -82,7 +83,7 @@ UYOU_BUNDLE = $(UYOU_PATH)/Library/Application\ Support/uYouBundle.bundle
 include $(THEOS)/makefiles/common.mk
 
 ifneq ($(JAILBROKEN),1)
-SUBPROJECTS += Tweaks/Alderis Tweaks/DontEatMyContent Tweaks/FLEXing/libflex Tweaks/Return-YouTube-Dislikes Tweaks/YTABConfig Tweaks/YouGroupSettings Tweaks/YTIcons Tweaks/YouLoop Tweaks/YouPiP Tweaks/YouQuality Tweaks/YouSlider Tweaks/YouSpeed Tweaks/YouTimeStamp Tweaks/YTVideoOverlay Tweaks/YTweaks
+SUBPROJECTS += Tweaks/Alderis Tweaks/DontEatMyContent Tweaks/FLEXing/libflex Tweaks/Return-YouTube-Dislikes Tweaks/YTABConfig Tweaks/YouGroupSettings Tweaks/YTIcons Tweaks/YouLoop Tweaks/YouMute Tweaks/YTHoldForSpeed Tweaks/YouPiP Tweaks/YouQuality Tweaks/YouSlider Tweaks/YouSpeed Tweaks/YouTimeStamp Tweaks/YTVideoOverlay Tweaks/YTweaks
 ifeq ($(SPONSORBLOCK_ENABLED),1)
 SUBPROJECTS += Tweaks/iSponsorBlock
 endif
