@@ -11,7 +11,7 @@ on:
         description: Expected SHA-256 of the verified input IPA
         required: true
         type: string
-      input_tag:
+      input_release_tag:
         description: Optional temporary draft release containing the verified input IPA
         required: false
         default: ''
@@ -96,7 +96,7 @@ jobs:
         env:
           YOUTUBE_URL: ${{ inputs.youtube_url }}
           YOUTUBE_SHA256: ${{ inputs.youtube_sha256 }}
-          INPUT_TAG: ${{ inputs.input_tag }}
+          INPUT_TAG: ${{ inputs.input_release_tag }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
