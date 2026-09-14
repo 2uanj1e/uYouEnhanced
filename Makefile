@@ -24,6 +24,9 @@ $(TWEAK_NAME)_FILES := $(wildcard Sources/*.xm) $(wildcard Sources/*.x) $(wildca
 $(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation AVFoundation AVKit Photos Accelerate CoreMotion GameController VideoToolbox Security MediaPlayer
 $(TWEAK_NAME)_LIBRARIES = bz2 c++ iconv z
 CODEX_PLAYBACK_FIXES ?= 1
+ifeq ($(CODEX_PLAYBACK_FIXES),0)
+$(TWEAK_NAME)_FILES := $(filter-out Sources/CodexFeedPlaybackFix.xm Sources/CodexPlaybackSpeedFix.xm,$($(TWEAK_NAME)_FILES))
+endif
 $(TWEAK_NAME)_CFLAGS = -DCODEX_PLAYBACK_FIXES=$(CODEX_PLAYBACK_FIXES) -fobjc-arc -Wno-deprecated-declarations -Wno-unused-but-set-variable -DTWEAK_VERSION=\"$(PACKAGE_VERSION)\"
 
 export libcolorpicker_ARCHS = arm64
