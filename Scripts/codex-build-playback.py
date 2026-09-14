@@ -91,13 +91,12 @@ def clean_old_injection(app):
     assert info["CFBundleShortVersionString"] == "21.14.4"
     binary = app / info["CFBundleExecutable"]
     before = dependencies(binary)
-    removed = [name for name in before if name.startswith("@rpath/")
+    existing = [name for name in before if name.startswith("@rpath/")
                and name.removeprefix("@rpath/") in OLD_DYLIBS]
-    assert len(removed) == 18, f"Input injection count changed: {removed}"
+    assert len(existing) == 18, f"Input injection count changed: {existing}"
+    main_before = digest(binary)
     widevine = app / "Frameworks/widevine_cdm_secured_ios.framework/widevine_cdm_secured_ios"
     widevine_before = digest(widevine)
-    for name in removed:
-        run([os.environ["OPTOOL"], "uninstall", "-p", name, "-t", binary])
     removed_files = []
     for name in sorted(OLD_DYLIBS | OLD_DEPENDENCIES):
         path = app / "Frameworks" / name
@@ -108,12 +107,14 @@ def clean_old_injection(app):
             path.unlink()
             removed_files.append(name)
     after = dependencies(binary)
-    assert after == [name for name in before if name not in removed]
+    assert after == before
+    assert digest(binary) == main_before
     assert digest(widevine) == widevine_before
     RECORD["input_cleanup"] = {
-        "removed_load_commands": removed, "removed_tweak_files": removed_files,
+        "preserved_load_commands": existing, "removed_tweak_files": removed_files,
         "remaining_load_commands": after, "google_widevine_sha256": widevine_before,
-        "google_widevine_unchanged": True,
+        "google_widevine_unchanged": True, "main_sha256": main_before,
+        "main_executable_unchanged": True,
     }
     save_record()
 
@@ -180,6 +181,8 @@ def build_variant(label, enabled, clean_app):
     stage = ROOT / "signed" / label
     stage.mkdir(parents=True)
     signed_app = unpack(packages[0], stage)
+    main_info = plistlib.loads((signed_app / "Info.plist").read_bytes())
+    assert digest(signed_app / main_info["CFBundleExecutable"]) == RECORD["input_cleanup"]["main_sha256"], "Packaging changed the existing main executable"
     run(["codesign", "--force", "--deep", "--sign", "-", "--timestamp=none",
          "--preserve-metadata=identifier,entitlements", signed_app])
     result = verify_app(signed_app)
@@ -190,6 +193,7 @@ def build_variant(label, enabled, clean_app):
         plistlib.loads(archive.read("Payload/YouTube.app/Info.plist"))
     result.update({"artifact": target.name, "sha256": digest(target),
                    "bytes": target.stat().st_size, "CODEX_PLAYBACK_FIXES": enabled,
+                   "main_executable_unchanged_before_resigning": True,
                    "device_playback_and_signin_test": "pending user device test"})
     RECORD["variants"][label] = result
     save_record()

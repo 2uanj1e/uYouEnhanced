@@ -69,15 +69,6 @@ jobs:
           path: theos-jailed
           persist-credentials: false
 
-      - name: Checkout optool
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: alexzielenski/optool
-          ref: 2898b51da0c0f2f5d7302af5ec82b858ebd4013c
-          path: optool-source
-          submodules: recursive
-          persist-credentials: false
-
       - name: Prepare build tools
         shell: bash
         run: |
@@ -87,11 +78,6 @@ jobs:
           mkdir -p "$THEOS/sdks" "$GITHUB_WORKSPACE/artifacts"
           mv sdk-source/iPhoneOS18.6.sdk "$THEOS/sdks/"
           ./theos-jailed/install
-          clang -fobjc-arc -fmodules -framework Foundation \
-            -Ioptool-source/optool/FSArgumentParser/ArgumentParser \
-            optool-source/optool/*.m optool-source/optool/FSArgumentParser/ArgumentParser/*.m \
-            -o "$GITHUB_WORKSPACE/optool-built" > artifacts/optool-build.log 2>&1
-          echo "OPTOOL=$GITHUB_WORKSPACE/optool-built" >> "$GITHUB_ENV"
           python3 source/Scripts/codex-fix-jailed.py
 
       - name: Download and clean verified input IPA
