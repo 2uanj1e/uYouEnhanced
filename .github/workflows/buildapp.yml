@@ -28,6 +28,8 @@ jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 60
+    permissions:
+      contents: write
     env:
       THEOS: ${{ github.workspace }}/theos
       SDK_VERSION: '18.6'
@@ -90,6 +92,7 @@ jobs:
             optool-source/optool/*.m optool-source/optool/FSArgumentParser/ArgumentParser/*.m \
             -o "$GITHUB_WORKSPACE/optool-built" > artifacts/optool-build.log 2>&1
           echo "OPTOOL=$GITHUB_WORKSPACE/optool-built" >> "$GITHUB_ENV"
+          python3 source/Scripts/codex-fix-jailed.py
 
       - name: Download and clean verified input IPA
         shell: bash
