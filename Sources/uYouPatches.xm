@@ -992,9 +992,9 @@ static float uYouSavedPlaybackRate = 0.0f;
         hamPlayerClass != nil &&
         [hamPlayerClass instancesRespondToSelector:@selector(setRate:)] &&
         [hamPlayerClass instancesRespondToSelector:@selector(rate)];
-    if (speedFixesSafe) {
+    if (speedFixesSafe && !CODEX_PLAYBACK_FIXES) {
         %init(gYouSpeedFixes);
-    } else {
+    } else if (!speedFixesSafe) {
         UYTPatchWarn(@"[uYouPatches] Skipping gYouSpeedFixes: playback-rate selectors missing on this YouTube build");
     }
 

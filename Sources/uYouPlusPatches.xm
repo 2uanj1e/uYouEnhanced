@@ -33,39 +33,9 @@ static NSString *accessGroupID() {
 
 %group gPatches
 
-%hook NSBundle
-+ (NSBundle *)bundleWithIdentifier:(NSString *)identifier {
-    if ([identifier isEqualToString:YT_BUNDLE_ID])
-        return NSBundle.mainBundle;
-    return %orig(
-        identifier
-    );
-}
-- (NSString *)bundleIdentifier {
-    if ([self isEqual:NSBundle.mainBundle])
-        return YT_BUNDLE_ID;
-    return %orig;
-}
-- (NSDictionary *)infoDictionary {
-    NSDictionary *dict = %orig;
-    if (![self isEqual:NSBundle.mainBundle])
-        return %orig;
-    NSMutableDictionary *info = [dict mutableCopy];
-    if (info[@"CFBundleIdentifier"]) info[@"CFBundleIdentifier"] = YT_BUNDLE_ID;
-    if (info[@"CFBundleDisplayName"]) info[@"CFBundleDisplayName"] = YT_NAME;
-    if (info[@"CFBundleName"]) info[@"CFBundleName"] = YT_NAME;
-    return info;
-}
-- (id)objectForInfoDictionaryKey:(NSString *)key {
-    if (![self isEqual:NSBundle.mainBundle])
-        return %orig;
-    if ([key isEqualToString:@"CFBundleIdentifier"])
-        return YT_BUNDLE_ID;
-    if ([key isEqualToString:@"CFBundleDisplayName"] || [key isEqualToString:@"CFBundleName"])
-        return YT_NAME;
-    return %orig;
-}
-%end
+// Daily updates retain real NSBundle metadata. Use the separate temporary
+// login bootstrap only when a new Google sign-in is required, then overwrite
+// it in place with this build. No permanent NSBundle identity override here.
 
 %hook YTDataUtils
 + (NSMutableDictionary *)spamSignalsDictionary {

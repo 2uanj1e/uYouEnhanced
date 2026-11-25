@@ -156,7 +156,6 @@ static NSString *const kClassicVideoPlayer = @"classicVideoPlayer_enabled";
 static NSString *const kDisableModernButtons = @"disableModernButtons_enabled";
 static NSString *const kDisableModernFlags = @"disableModernFlags_enabled";
 static NSString *const kEnableVersionSpoofer = @"enableVersionSpoofer_enabled";
-static NSString *const kGoogleSignInPatch = @"googleSignInPatch_enabled";
 static NSString *const kEnableDynamicIslandFix = @"enableDynamicIslandFix_enabled";
 static NSString *const kAdBlockWorkaroundLite = @"adBlockWorkaroundLite_enabled";
 static NSString *const kAdBlockWorkaround = @"adBlockWorkaround_enabled";
